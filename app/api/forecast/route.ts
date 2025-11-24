@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+// Ensure this API route is treated as dynamic at runtime (not statically exported)
+export const dynamic = 'force-dynamic';
+
 const WEATHER_KEY = process.env.WEATHER_API_KEY;
 
 if (!WEATHER_KEY) {
