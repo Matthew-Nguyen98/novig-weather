@@ -11,7 +11,7 @@ import {
   Legend,
   TimeScale,
 } from 'chart.js';
-import type { Chart as ChartType, ChartConfiguration } from 'chart.js';
+import type { Chart as ChartType, ChartConfiguration, TooltipItem } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 
 ChartJS.register(
@@ -185,9 +185,9 @@ export default function ForecastView({ location, dayOfWeek, segment }: { locatio
         plugins: {
           tooltip: {
             callbacks: {
-              label: function(context: {dataset: {label: string}; formattedValue: string}) {
-                const label = context.dataset.label || '';
-                const value = context.formattedValue;
+              label: function(context: TooltipItem<'line'>) {
+                const label = context.dataset?.label ?? '';
+                const value = String(context.formattedValue ?? '');
                 if (typeof label === 'string' && label.includes('Temperature')) return `${label}: ${value}°F`;
                 return `${label}: ${value}`;
               }
