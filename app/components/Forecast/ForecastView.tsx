@@ -1,3 +1,4 @@
+"use client";
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   Chart as ChartJS,
@@ -68,12 +69,38 @@ export default function ForecastView({ location, dayOfWeek, segment }: { locatio
       const yyyy = target.toISOString().slice(0,10);
 
       const params = new URLSearchParams({ location, date: yyyy, segment });
-      const res = await fetch(`/api/forecast?${params.toString()}`);
+
+      // Prefer client-side direct fetch to provider if public API key is available.
+      const publicKey = process.env.NEXT_PUBLIC_WEATHER_API_KEY;
+      let res: Response;
+      if (publicKey) {
+        const vcBase = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline';
+        const fetchUrl = `${vcBase}/${encodeURIComponent(location)}/${yyyy}?unitGroup=metric&key=${publicKey}&include=hours`;
+        try {
+          res = await fetch(fetchUrl);
+        } catch {
+          setData({ error: 'Failed to fetch provider' });
+          setLoading(false);
+          return;
+        }
+      } else {
+        // fallback to local API route (useful in dev or if user kept server)
+        const localUrl = `/api/forecast?${params.toString()}`;
+        try {
+          res = await fetch(localUrl);
+        } catch {
+          setData({ error: 'Failed to fetch local API' });
+          setLoading(false);
+          return;
+        }
+      }
+
       if (res.ok) {
         const json = (await res.json()) as ForecastData;
         setData(json);
       } else {
-        setData({ error: 'Failed to fetch' });
+        const text = await res.text().catch(() => '');
+        setData({ error: text || 'Failed to fetch' });
       }
       setLoading(false);
     }
@@ -204,7 +231,7 @@ export default function ForecastView({ location, dayOfWeek, segment }: { locatio
             time: { unit: 'hour', tooltipFormat: 'PPpp' },
             ticks: { source: 'labels' },
           },
-          y1: { type: 'linear', position: 'left', title: { display: true, text: '°F' }, ticks: { callback: function(v: any) { return v + '°F'; } } },
+          y1: { type: 'linear', position: 'left', title: { display: true, text: '°F' }, ticks: { callback: function(v: number | string) { return String(v) + '°F'; } } },
           y2: { type: 'linear', position: 'right', title: { display: true, text: 'Humidity %' }, grid: { drawOnChartArea: false } },
           y3: { type: 'linear', position: 'right', title: { display: true, text: 'Wind' }, grid: { drawOnChartArea: false }, ticks: { display: true } },
         },
