@@ -178,6 +178,7 @@ export default function ForecastView({ location, dayOfWeek, segment }: { locatio
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         interaction: {
           mode: 'index',
           intersect: false,
@@ -189,7 +190,7 @@ export default function ForecastView({ location, dayOfWeek, segment }: { locatio
             ticks: { source: 'labels' },
           },
           y1: { type: 'linear', position: 'left', title: { display: true, text: '°C' } },
-          y2: { type: 'linear', position: 'right', title: { display: true, text: '%' }, grid: { drawOnChartArea: false } },
+          y2: { type: 'linear', position: 'right', title: { display: true, text: 'Humidity %' }, grid: { drawOnChartArea: false } },
           y3: { type: 'linear', position: 'right', title: { display: true, text: 'Wind' }, grid: { drawOnChartArea: false }, ticks: { display: true } },
         },
       },
@@ -237,21 +238,16 @@ export default function ForecastView({ location, dayOfWeek, segment }: { locatio
         <button onClick={() => setWeekOffset(w => w + 1)} className="px-3 py-1 border rounded">Next week</button>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 forecast-grid">
         {/* Chart section */}
         <div className="col-span-full">
           <div className="rounded border p-3">
-            <canvas id="forecast-chart" />
+            <div className="forecast-chart-wrapper">
+              <canvas id="forecast-chart" />
+            </div>
           </div>
         </div>
-        {hours.length === 0 && <div className="col-span-full">No hours in this segment.</div>}
-        {hours.map((h, idx) => (
-          <div key={idx} className="rounded border p-3">
-            <div className="text-xs text-gray-500">{new Date((h.datetimeEpoch ?? 0) * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-            <div className="text-lg font-semibold">{h.temp ? Math.round(h.temp) : '--'}°</div>
-            <div className="text-sm text-gray-600">{h.conditions ?? h.icon ?? ''}</div>
-          </div>
-        ))}
+       
       </div>
     </div>
   );
