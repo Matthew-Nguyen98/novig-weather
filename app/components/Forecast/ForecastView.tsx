@@ -109,20 +109,23 @@ export default function ForecastView({ location, dayOfWeek, segment }: { locatio
   };
 
   // compute simple descriptive messages (must be before any early return)
+  const cToF = (c: number) => (c * 9/5) + 32;
+
   const avg = useMemo(() => {
     const nums = hours.filter(h => typeof h.temp === 'number').map(h => h.temp as number);
     const avgTempC = nums.length ? nums.reduce((a,b) => a+b, 0) / nums.length : null;
+    const avgTempF = avgTempC != null ? cToF(avgTempC) : null;
     const avgHum = hours.map(h => readNumber(h, 'humidity', 'hum', 'rh')).filter(v => typeof v === 'number') as number[];
     const avgHumVal = avgHum.length ? avgHum.reduce((a,b) => a+b, 0) / avgHum.length : null;
     const avgWind = hours.map(h => readNumber(h, 'wspd', 'windspeed', 'windSpeed', 'wind_kph', 'wind_kmh')).filter(v => typeof v === 'number') as number[];
     const avgWindVal = avgWind.length ? avgWind.reduce((a,b) => a+b, 0) / avgWind.length : null;
-    return { avgTempC, avgHumVal, avgWindVal };
+  return { avgTempC, avgTempF, avgHumVal, avgWindVal };
   }, [hours]);
 
   const messages = useMemo(() => {
     const out: string[] = [];
-    if (avg.avgTempC != null) {
-      const f = (avg.avgTempC * 9/5) + 32;
+    if (avg.avgTempF != null) {
+      const f = avg.avgTempF;
       if (f >= 60 && f <= 75) out.push('Nice day');
       else if (f < 50) out.push('Cool');
       else if (f > 85) out.push('Hot');
@@ -140,7 +143,7 @@ export default function ForecastView({ location, dayOfWeek, segment }: { locatio
 
   const chartConfig: ChartConfiguration = useMemo(() => {
     const chartLabels = hours.map((h) => (h.datetimeEpoch ? h.datetimeEpoch * 1000 : undefined)).filter(Boolean) as number[];
-    const tempData = hours.map((h) => (typeof h.temp === 'number' ? h.temp : null));
+  const tempData = hours.map((h) => (typeof h.temp === 'number' ? cToF(h.temp as number) : null));
 
   const humidityData = hours.map((h) => readNumber(h, 'humidity', 'hum', 'rh'));
   const windData = hours.map((h) => readNumber(h, 'wspd', 'windspeed', 'windSpeed', 'wind_kph', 'wind_kmh'));
@@ -151,7 +154,7 @@ export default function ForecastView({ location, dayOfWeek, segment }: { locatio
         labels: chartLabels,
         datasets: [
           {
-            label: 'Temperature (°C)',
+            label: 'Temperature (°F)',
             data: tempData,
             borderColor: 'rgba(255,99,132,1)',
             backgroundColor: 'rgba(255,99,132,0.2)',
@@ -179,6 +182,18 @@ export default function ForecastView({ location, dayOfWeek, segment }: { locatio
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: function(context: {dataset: {label: string}; formattedValue: string}) {
+                const label = context.dataset.label || '';
+                const value = context.formattedValue;
+                if (typeof label === 'string' && label.includes('Temperature')) return `${label}: ${value}°F`;
+                return `${label}: ${value}`;
+              }
+            }
+          }
+        },
         interaction: {
           mode: 'index',
           intersect: false,
@@ -189,7 +204,7 @@ export default function ForecastView({ location, dayOfWeek, segment }: { locatio
             time: { unit: 'hour', tooltipFormat: 'PPpp' },
             ticks: { source: 'labels' },
           },
-          y1: { type: 'linear', position: 'left', title: { display: true, text: '°C' } },
+          y1: { type: 'linear', position: 'left', title: { display: true, text: '°F' }, ticks: { callback: function(v: any) { return v + '°F'; } } },
           y2: { type: 'linear', position: 'right', title: { display: true, text: 'Humidity %' }, grid: { drawOnChartArea: false } },
           y3: { type: 'linear', position: 'right', title: { display: true, text: 'Wind' }, grid: { drawOnChartArea: false }, ticks: { display: true } },
         },
@@ -229,25 +244,29 @@ export default function ForecastView({ location, dayOfWeek, segment }: { locatio
 
   return (
     <div className="w-full p-4" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-      <div className="flex items-center justify-between">
-        <button onClick={() => setWeekOffset(w => w - 1)} className="px-3 py-1 border rounded">Previous week</button>
-        <div className="text-sm">
-          <div>{data.resolvedAddress} — {data.date} — {segment}</div>
-          {messages.length > 0 && <div className="text-xs text-gray-600 mt-1">{messages.join(' · ')}</div>}
-        </div>
-        <button onClick={() => setWeekOffset(w => w + 1)} className="px-3 py-1 border rounded">Next week</button>
-      </div>
+      <div className="mt-4">
+  <div className="grid items-center gap-2" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
+          <div className="flex justify-start">
+            <button aria-label="Previous week" onClick={() => setWeekOffset(w => w - 1)} className="px-3 py-1 border rounded">&lt;</button>
+          </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 forecast-grid">
-        {/* Chart section */}
-        <div className="col-span-full">
-          <div className="rounded border p-3">
-            <div className="forecast-chart-wrapper">
-              <canvas id="forecast-chart" />
+          <div className="mx-2">
+            <div className="text-sm mb-2 text-center">
+              <div>{data.resolvedAddress} — {data.date} — {segment}</div>
+              {messages.length > 0 && <div className="text-xs text-gray-600 mt-1">{messages.join(' · ')}</div>}
+            </div>
+
+            <div className="rounded border p-3">
+              <div className="forecast-chart-wrapper">
+                <canvas id="forecast-chart" />
+              </div>
             </div>
           </div>
+
+          <div className="flex justify-end">
+            <button aria-label="Next week" onClick={() => setWeekOffset(w => w + 1)} className="px-3 py-1 border rounded">&gt;</button>
+          </div>
         </div>
-       
       </div>
     </div>
   );
